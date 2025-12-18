@@ -31,6 +31,8 @@ const Booking = () => {
   const [bookedSeats, setBookedSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState({});
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const showDate = useMemo(() => new Date(dateParam), [dateParam]);
@@ -79,22 +81,40 @@ const Booking = () => {
     0
   );
 
+  const handlePaymentSelect = (method) => {
+    setSelectedPayment(method);
+    setShowPaymentForm(true);
+    setPaymentDetails({});
+  };
+
+  const handlePaymentSubmit = (e) => {
+    e.preventDefault();
+    const requiredFields = {
+      "Credit Card": ["cardNumber", "expiryDate", "cvv", "cardholderName"],
+      "UPI": ["upiId"],
+      "Wallet": ["walletType", "walletId"]
+    };
+    
+    const required = requiredFields[selectedPayment];
+    const missing = required.filter(field => !paymentDetails[field]);
+    
+    if (missing.length > 0) {
+      toast.error("Please fill all payment details");
+      return;
+    }
+    
+    handleConfirm();
+  };
+
   const handleConfirm = async () => {
-    if (!selectedSeats.length) {
-      toast.error("Please select at least one seat");
-      return;
-    }
-    if (!selectedPayment) {
-      toast.error("Please select a payment method");
-      return;
-    }
     try {
       await api.post("/api/bookings", {
         movieId,
         showDate: showDate.toISOString(),
         showtime: timeParam,
         seats: selectedSeats,
-        paymentMethod: selectedPayment
+        paymentMethod: selectedPayment,
+        paymentDetails
       });
       toast.success(`Payment successful via ${selectedPayment}! Booking confirmed 🎉`);
       navigate("/my-bookings");
@@ -287,7 +307,7 @@ const Booking = () => {
               return (
                 <button
                   key={method.id}
-                  onClick={() => setSelectedPayment(method.id)}
+                  onClick={() => handlePaymentSelect(method.id)}
                   className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
                     selectedPayment === method.id
                       ? "bg-primary border-primary text-white"
@@ -303,6 +323,107 @@ const Booking = () => {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Payment Details Form */}
+      {showPaymentForm && selectedPayment && (
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-bold mb-4">Enter {selectedPayment} Details</h3>
+          <form onSubmit={handlePaymentSubmit} className="space-y-4">
+            {selectedPayment === "Credit Card" && (
+              <>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Card Number (1234 5678 9012 3456)"
+                    className="input-field"
+                    value={paymentDetails.cardNumber || ""}
+                    onChange={(e) => setPaymentDetails({...paymentDetails, cardNumber: e.target.value})}
+                    maxLength={19}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Cardholder Name"
+                    className="input-field"
+                    value={paymentDetails.cardholderName || ""}
+                    onChange={(e) => setPaymentDetails({...paymentDetails, cardholderName: e.target.value})}
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="MM/YY"
+                    className="input-field"
+                    value={paymentDetails.expiryDate || ""}
+                    onChange={(e) => setPaymentDetails({...paymentDetails, expiryDate: e.target.value})}
+                    maxLength={5}
+                  />
+                  <input
+                    type="text"
+                    placeholder="CVV"
+                    className="input-field"
+                    value={paymentDetails.cvv || ""}
+                    onChange={(e) => setPaymentDetails({...paymentDetails, cvv: e.target.value})}
+                    maxLength={3}
+                  />
+                </div>
+              </>
+            )}
+            
+            {selectedPayment === "UPI" && (
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="UPI ID (example@paytm)"
+                  className="input-field"
+                  value={paymentDetails.upiId || ""}
+                  onChange={(e) => setPaymentDetails({...paymentDetails, upiId: e.target.value})}
+                />
+                <div className="bg-dark-700/50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-gray-400 mb-2">Scan QR Code to Pay</p>
+                  <div className="w-32 h-32 bg-white mx-auto rounded-lg flex items-center justify-center">
+                    <span className="text-dark-900 text-xs">QR Code</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {selectedPayment === "Wallet" && (
+              <>
+                <select
+                  className="input-field"
+                  value={paymentDetails.walletType || ""}
+                  onChange={(e) => setPaymentDetails({...paymentDetails, walletType: e.target.value})}
+                >
+                  <option value="">Select Wallet</option>
+                  <option value="Paytm">Paytm</option>
+                  <option value="Amazon Pay">Amazon Pay</option>
+                  <option value="PhonePe">PhonePe</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Wallet ID / Phone Number"
+                  className="input-field"
+                  value={paymentDetails.walletId || ""}
+                  onChange={(e) => setPaymentDetails({...paymentDetails, walletId: e.target.value})}
+                />
+              </>
+            )}
+            
+            <div className="flex gap-3">
+              <button type="submit" className="btn-primary flex-1">
+                Pay ₹{totalAmount}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaymentForm(false)}
+                className="btn-outline"
+              >
+                Back
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -353,11 +474,11 @@ const Booking = () => {
               <p className="text-4xl font-bold text-accent">₹{totalAmount}</p>
             </div>
             <button
-              onClick={handleConfirm}
+              onClick={() => selectedPayment && setShowPaymentForm(true)}
               disabled={selectedSeats.length === 0 || !selectedPayment}
               className="btn-primary w-full lg:w-auto px-12 py-4 text-lg"
             >
-              {selectedPayment ? `Pay ₹${totalAmount} via ${selectedPayment}` : "Select Payment Method"}
+              {selectedPayment ? `Continue to Payment` : "Select Payment Method"}
             </button>
           </div>
         </div>
