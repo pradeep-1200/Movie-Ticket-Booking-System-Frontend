@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../utils/api";
 import { toast } from "react-toastify";
-import { FaCouch, FaTicketAlt } from "react-icons/fa";
+import { FaCouch, FaTicketAlt, FaCreditCard, FaWallet, FaMobile } from "react-icons/fa";
 
 const rows = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const seatsPerRow = 12;
@@ -30,6 +30,7 @@ const Booking = () => {
   const [movie, setMovie] = useState(null);
   const [bookedSeats, setBookedSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [selectedPayment, setSelectedPayment] = useState("");
   const [loading, setLoading] = useState(true);
 
   const showDate = useMemo(() => new Date(dateParam), [dateParam]);
@@ -83,14 +84,19 @@ const Booking = () => {
       toast.error("Please select at least one seat");
       return;
     }
+    if (!selectedPayment) {
+      toast.error("Please select a payment method");
+      return;
+    }
     try {
       await api.post("/api/bookings", {
         movieId,
         showDate: showDate.toISOString(),
         showtime: timeParam,
-        seats: selectedSeats
+        seats: selectedSeats,
+        paymentMethod: selectedPayment
       });
-      toast.success("Booking confirmed successfully! 🎉");
+      toast.success(`Payment successful via ${selectedPayment}! Booking confirmed 🎉`);
       navigate("/my-bookings");
     } catch (err) {
       if (err.response?.status === 409) {
@@ -264,6 +270,42 @@ const Booking = () => {
         </div>
       </div>
 
+      {/* Payment Options */}
+      {selectedSeats.length > 0 && (
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-bold flex items-center gap-2 mb-4">
+            <FaCreditCard className="text-primary" />
+            Select Payment Method
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { id: "Credit Card", icon: FaCreditCard, desc: "Visa, MasterCard, Amex" },
+              { id: "UPI", icon: FaMobile, desc: "PhonePe, GPay, Paytm" },
+              { id: "Wallet", icon: FaWallet, desc: "Paytm, Amazon Pay" }
+            ].map((method) => {
+              const Icon = method.icon;
+              return (
+                <button
+                  key={method.id}
+                  onClick={() => setSelectedPayment(method.id)}
+                  className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                    selectedPayment === method.id
+                      ? "bg-primary border-primary text-white"
+                      : "bg-dark-700/50 border-dark-600 hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <Icon className="text-xl" />
+                    <span className="font-semibold">{method.id}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{method.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Booking Summary */}
       <div className="glass-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -294,6 +336,11 @@ const Booking = () => {
                     </span>
                   )}
                 </div>
+                {selectedPayment && (
+                  <p className="text-sm text-primary font-medium">
+                    Payment: {selectedPayment}
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-gray-400">No seats selected</p>
@@ -307,10 +354,10 @@ const Booking = () => {
             </div>
             <button
               onClick={handleConfirm}
-              disabled={selectedSeats.length === 0}
+              disabled={selectedSeats.length === 0 || !selectedPayment}
               className="btn-primary w-full lg:w-auto px-12 py-4 text-lg"
             >
-              Confirm Booking
+              {selectedPayment ? `Pay ₹${totalAmount} via ${selectedPayment}` : "Select Payment Method"}
             </button>
           </div>
         </div>
