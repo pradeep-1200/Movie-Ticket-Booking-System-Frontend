@@ -381,10 +381,18 @@ const Booking = () => {
                   onChange={(e) => setPaymentDetails({...paymentDetails, upiId: e.target.value})}
                 />
                 <div className="bg-dark-700/50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-gray-400 mb-2">Scan QR Code to Pay</p>
-                  <div className="w-32 h-32 bg-white mx-auto rounded-lg flex items-center justify-center">
-                    <span className="text-dark-900 text-xs">QR Code</span>
+                  <p className="text-sm text-gray-400 mb-2">Scan QR Code to Pay ₹{totalAmount}</p>
+                  <div className="w-40 h-40 bg-white mx-auto rounded-lg p-2">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${paymentDetails.upiId || 'demo@paytm'}&pn=CineBook&am=${totalAmount}&cu=INR&tn=Movie Ticket Booking`}
+                      alt="UPI QR Code"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = `https://via.placeholder.com/150x150/000000/FFFFFF?text=QR+CODE`;
+                      }}
+                    />
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">Pay using any UPI app</p>
                 </div>
               </div>
             )}
